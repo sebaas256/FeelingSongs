@@ -1,11 +1,317 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+// src/pages/index.astro
+import "../styles/global.css";
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+interface Resultado {
+  titulo: string;
+  artista: string;
+  anio: number;
+  match: number; // porcentaje de coincidencia semántica (0-100)
+}
+
+const resultados: Resultado[] = [
+  { titulo: "Looking for Love", artista: "Whitesnake", anio: 1987, match: 95 },
+  { titulo: "Wish You Were Here", artista: "Pink Floyd", anio: 1975, match: 88 },
+  { titulo: "Who's That Girl?", artista: "Eurythmics", anio: 1983, match: 82 },
+  { titulo: "Alone Again", artista: "Dokken", anio: 1985, match: 78 },
+];
+
+// Color de la señal según qué tan fuerte es la coincidencia (evita usar
+// siempre el mismo acento y refuerza la idea de "intensidad de señal").
+function colorDeSenal(match: number) {
+  if (match >= 90) return "var(--neon-cyan)";
+  if (match >= 80) return "var(--neon-violet)";
+  return "var(--neon-magenta)";
+}
+
+const sugerencias = [
+  "Nostalgia de los 80s",
+  "Euforia nocturna en la ciudad",
+  "Desamor en carretera",
+  "Calma antes de dormir",
+];
 ---
 
-<Layout>
-	<Welcome />
-</Layout>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Buscador de Emociones Musicales</title>
+    <meta
+      name="description"
+      content="Escribe lo que sientes y una IA encontrará la canción que mejor sintoniza con tu emoción."
+    />
+  </head>
+  <body class="relative min-h-screen bg-[var(--bg)] text-[var(--text-primary)] antialiased selection:bg-[var(--neon-magenta)]/40">
+    <!-- Textura CRT sutil sobre toda la página -->
+    <div class="pointer-events-none fixed inset-0 z-50 bg-scanlines opacity-[0.03]"></div>
+
+    <!-- Barra superior mínima -->
+    <header class="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-6 py-6 sm:px-8">
+      <span class="font-display text-sm tracking-[0.25em] text-[var(--text-primary)]">
+        FEELING<span class="text-[var(--neon-cyan)]">//</span>SONGS
+      </span>
+      <span class="hidden items-center gap-2 font-mono-readout text-xs text-[var(--text-muted)] sm:flex">
+        <span class="h-2 w-2 rounded-full bg-[var(--neon-magenta)] animate-signal-pulse"></span>
+        EN VIVO
+      </span>
+    </header>
+
+    <!-- HERO -->
+    <section class="relative overflow-hidden px-6 pb-28 pt-10 sm:px-8 sm:pb-36">
+      <!-- Resplandor tipo "sol" synth-wave detrás del título -->
+      <div
+        class="pointer-events-none absolute left-1/2 top-4 h-72 w-72 -translate-x-1/2 rounded-full opacity-40 blur-3xl sm:h-96 sm:w-96"
+        style="background: radial-gradient(circle, var(--neon-magenta) 0%, var(--neon-violet) 45%, transparent 72%);"
+      >
+      </div>
+
+      <!-- Piso de rejilla en perspectiva -->
+      <div
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-40 overflow-hidden sm:h-56"
+        style="mask-image: linear-gradient(to top, black, transparent); -webkit-mask-image: linear-gradient(to top, black, transparent);"
+      >
+        <div class="absolute inset-0" style="transform: perspective(300px) rotateX(65deg); transform-origin: bottom;">
+          <div class="absolute inset-0 bg-grid-lines animate-grid-scroll"></div>
+        </div>
+      </div>
+
+      <div class="relative z-10 mx-auto max-w-3xl text-center">
+        <p class="font-mono-readout text-xs tracking-[0.3em] text-[var(--neon-cyan)]">
+          IA · BÚSQUEDA SEMÁNTICA MUSICAL
+        </p>
+
+        <h1 class="font-display mt-5 text-4xl leading-tight text-transparent sm:text-6xl">
+          <span class="bg-gradient-to-r from-[var(--neon-cyan)] via-[var(--neon-violet)] to-[var(--neon-magenta)] bg-clip-text">
+            Encuentra tu sintonía
+          </span>
+        </h1>
+
+        <p class="mx-auto mt-6 max-w-xl text-base text-[var(--text-muted)] sm:text-lg">
+          Escribe lo que sientes o la atmósfera que buscas y la IA encontrará
+          la canción perfecta.
+        </p>
+
+        <!-- Barra de búsqueda -->
+        <form id="searchForm" class="mx-auto mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row">
+          <label for="busqueda" class="sr-only">Describe tu emoción o la atmósfera que buscas</label>
+          <input
+            id="busqueda"
+            type="text"
+            placeholder="¿Qué tipo de música o emoción buscas hoy?"
+            class="w-full flex-1 rounded-full border border-[var(--surface-border)] bg-[var(--surface)]/80 px-6 py-4 text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none backdrop-blur transition focus:border-[var(--neon-cyan)] focus:shadow-[0_0_25px_-6px_var(--neon-cyan)]"
+          />
+          <button
+            type="submit"
+            class="shrink-0 rounded-full bg-gradient-to-r from-[var(--neon-magenta)] to-[var(--neon-violet)] px-8 py-4 font-semibold text-white transition hover:shadow-[0_0_30px_-4px_var(--neon-magenta)] active:scale-[0.97]"
+          >
+            Buscar
+          </button>
+        </form>
+
+        <!-- Chips de sugerencia -->
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <span class="font-mono-readout text-xs text-[var(--text-muted)]">Prueba con:</span>
+          {
+            sugerencias.map((s) => (
+              <button
+                type="button"
+                data-suggestion={s}
+                class="suggestion-chip rounded-full border border-[var(--surface-border)] bg-[var(--surface)]/50 px-3 py-1 text-xs text-[var(--text-muted)] transition hover:border-[var(--neon-cyan)]/60 hover:text-[var(--text-primary)]"
+              >
+                {s}
+              </button>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTADOS -->
+    <section class="relative z-10 mx-auto max-w-5xl px-6 pb-24 sm:px-8">
+      <div class="mb-8 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="font-mono-readout text-xs tracking-[0.3em] text-[var(--neon-cyan)]">
+            COINCIDENCIAS DETECTADAS
+          </p>
+          <h2 id="resultsCount" class="mt-2 text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">
+            {resultados.length} canciones sintonizadas con tu búsqueda
+          </h2>
+        </div>
+      </div>
+
+      <div id="resultsGrid" class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {
+          resultados.map((r) => (
+            <article class="group relative overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]/60 p-6 backdrop-blur transition duration-300 hover:-translate-y-1.5">
+              <div
+                class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100"
+                style={`box-shadow: 0 0 0 1px color-mix(in srgb, ${colorDeSenal(r.match)} 45%, transparent), 0 0 30px -8px ${colorDeSenal(r.match)};`}
+              />
+
+              <div class="relative z-10 flex items-center gap-5">
+                <!-- Anillo de coincidencia estilo VU-meter -->
+                <div
+                  class="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full"
+                  style={`background: conic-gradient(from -90deg, ${colorDeSenal(r.match)} ${r.match}%, rgba(255,255,255,0.08) ${r.match}% 100%);`}
+                >
+                  <div class="flex h-[68px] w-[68px] flex-col items-center justify-center rounded-full bg-[var(--bg-elevated)]">
+                    <span class="font-mono-readout text-lg font-bold text-[var(--text-primary)]">
+                      {r.match}%
+                    </span>
+                  </div>
+                </div>
+
+                <div class="min-w-0">
+                  <h3 class="truncate text-lg font-semibold text-[var(--text-primary)]">
+                    {r.titulo}
+                  </h3>
+                  <p class="truncate text-sm text-[var(--text-muted)]">
+                    {r.artista} · {r.anio}
+                  </p>
+                  <p
+                    class="font-mono-readout mt-2 text-[11px] tracking-wide"
+                    style={`color: ${colorDeSenal(r.match)}`}
+                  >
+                    SEÑAL {r.match >= 90 ? "FUERTE" : r.match >= 80 ? "MEDIA" : "DÉBIL"}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="relative z-10 border-t border-[var(--surface-border)] px-6 py-8 text-center sm:px-8">
+      <p class="font-mono-readout text-xs text-[var(--text-muted)]">
+        Buscador de Emociones Musicales — sintonizado con IA
+      </p>
+    </footer>
+
+    <script>
+      // 1. Definir la lógica de colores para usarla en el cliente
+      // Agregamos el tipo ": number" a match para que TypeScript sepa qué es
+      function colorDeSenal(match: number) {
+        if (match >= 90) return "var(--neon-cyan)";
+        if (match >= 80) return "var(--neon-violet)";
+        return "var(--neon-magenta)";
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        // 2. Variables de elementos del DOM
+        const searchForm = document.getElementById("searchForm");
+        // Le indicamos explícitamente a TypeScript que esto es un HTMLInputElement (o nulo)
+        const input = document.getElementById("busqueda") as HTMLInputElement | null;
+        const resultsGrid = document.getElementById("resultsGrid");
+        const resultsCount = document.getElementById("resultsCount");
+
+        // 3. Al tocar una sugerencia, la coloca en el input de búsqueda.
+        // Le indicamos a querySelectorAll que está buscando un HTMLButtonElement
+        document.querySelectorAll<HTMLButtonElement>(".suggestion-chip").forEach((chip) => {
+          chip.addEventListener("click", () => {
+            if (input) {
+              input.value = chip.dataset.suggestion || "";
+              input.focus();
+            }
+          });
+        });
+
+        // 4. Lógica principal de búsqueda al enviar el formulario
+        if (searchForm) {
+          searchForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            // Usamos el encadenamiento opcional (?.) por si input llega a ser null
+            const query = input?.value.trim();
+            if (!query || !resultsGrid) return;
+
+            // Mostrar estado de carga
+            resultsGrid.innerHTML = '<p class="text-center font-mono-readout text-[var(--neon-cyan)] col-span-full py-10 animate-pulse">Sintonizando frecuencias emocionales...</p>';
+            if(resultsCount) resultsCount.innerText = "Buscando sintonía...";
+
+            try {
+              // Hacemos la petición a tu servidor FastAPI
+              const response = await fetch("http://localhost:8000/api/buscar", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ emocion: query }),
+              });
+
+              if (!response.ok) {
+                throw new Error(`Error HTTP! status: ${response.status}`);
+              }
+
+              const data = await response.json();
+              const canciones = data.resultados;
+
+              // Limpiamos el grid
+              resultsGrid.innerHTML = ''; 
+
+              if (canciones.length === 0) {
+                resultsGrid.innerHTML = '<p class="text-center text-[var(--text-muted)] col-span-full py-10">No encontramos sintonía para esta emoción.</p>';
+                if(resultsCount) resultsCount.innerText = "0 canciones sintonizadas";
+                return;
+              }
+
+              if(resultsCount) resultsCount.innerText = `${canciones.length} canciones sintonizadas con tu búsqueda`;
+
+              // Construimos las tarjetas dinámicamente manteniendo tu diseño synth-wave original
+              // Le decimos a TS que 'r' puede ser cualquier cosa con ': any' para que no arroje error
+              canciones.forEach((r: any) => {
+                const porcentaje = parseInt(r.match);
+                const color = colorDeSenal(porcentaje);
+                const intensidad = porcentaje >= 90 ? "FUERTE" : porcentaje >= 80 ? "MEDIA" : "DÉBIL";
+                
+                const cardHTML = `
+                  <article class="group relative overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]/60 p-6 backdrop-blur transition duration-300 hover:-translate-y-1.5">
+                    <div
+                      class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100"
+                      style="box-shadow: 0 0 0 1px color-mix(in srgb, ${color} 45%, transparent), 0 0 30px -8px ${color};"
+                    ></div>
+                    <div class="relative z-10 flex items-center gap-5">
+                      <div
+                        class="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full"
+                        style="background: conic-gradient(from -90deg, ${color} ${porcentaje}%, rgba(255,255,255,0.08) ${porcentaje}% 100%);"
+                      >
+                        <div class="flex h-[68px] w-[68px] flex-col items-center justify-center rounded-full bg-[var(--bg-elevated)]">
+                          <span class="font-mono-readout text-lg font-bold text-[var(--text-primary)]">
+                            ${r.match}%
+                          </span>
+                        </div>
+                      </div>
+                      <div class="min-w-0">
+                        <h3 class="truncate text-lg font-semibold text-[var(--text-primary)]">
+                          ${r.titulo}
+                        </h3>
+                        <p class="truncate text-sm text-[var(--text-muted)]">
+                          ${r.artista} · ${r.anio}
+                        </p>
+                        <p
+                          class="font-mono-readout mt-2 text-[11px] tracking-wide"
+                          style="color: ${color}"
+                        >
+                          SEÑAL ${intensidad}
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                `;
+                resultsGrid.insertAdjacentHTML('beforeend', cardHTML);
+              });
+
+            } catch (error) {
+              console.error("Error al buscar:", error);
+              resultsGrid.innerHTML = '<p class="text-center text-red-500 col-span-full py-10">Error de conexión. Verifica que el servidor FastAPI esté corriendo.</p>';
+              if(resultsCount) resultsCount.innerText = "Fallo de conexión";
+            }
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
